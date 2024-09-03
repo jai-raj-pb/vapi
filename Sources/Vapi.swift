@@ -370,6 +370,11 @@ public final class Vapi: CallClientDelegate {
         let isVapiSpeaker = participant.info.username == "Vapi Speaker"
         let shouldSendAppMessage = isPlayable && isVapiSpeaker
         
+        let cameraTrack = participant.media?.camera.track
+        let screenTrack = participant.media?.screenVideo.track
+        let videoTrack = screenTrack ?? cameraTrack
+        currentVideoTrack = videoTrack
+        
         guard shouldSendAppMessage else {
             return
         }
