@@ -52,7 +52,7 @@ public final class Vapi: CallClientDelegate {
     // MARK: - Properties
 
     public let configuration: Configuration
-    @Published private(set) var currentVideoTrack: VideoTrack?
+    @Published public private(set) var currentVideoTrack: VideoTrack?
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
