@@ -52,6 +52,7 @@ public final class Vapi: CallClientDelegate {
     // MARK: - Properties
 
     public let configuration: Configuration
+    @Published public private(set) var currentVideoTrack: VideoTrack?
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
@@ -355,10 +356,24 @@ public final class Vapi: CallClientDelegate {
         self.call = nil
     }
     
+    public func callClient(_ callClient: CallClient, participantJoined participant: Participant) {
+        print("Participant \(participant.id) joined the call.")
+        // Determine whether the video input is from the camera or screen.
+        let cameraTrack = participant.media?.camera.track
+        let screenTrack = participant.media?.screenVideo.track
+        let videoTrack = screenTrack ?? cameraTrack
+        currentVideoTrack = videoTrack
+    }
+
     public func callClient(_ callClient: CallClient, participantUpdated participant: Participant) {
         let isPlayable = participant.media?.microphone.state == Daily.MediaState.playable
         let isVapiSpeaker = participant.info.username == "Vapi Speaker"
         let shouldSendAppMessage = isPlayable && isVapiSpeaker
+        
+        let cameraTrack = participant.media?.camera.track
+        let screenTrack = participant.media?.screenVideo.track
+        let videoTrack = screenTrack ?? cameraTrack
+        currentVideoTrack = videoTrack
         
         guard shouldSendAppMessage else {
             return
