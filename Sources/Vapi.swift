@@ -87,6 +87,13 @@ public final class Vapi: CallClientDelegate {
     public init(configuration: Configuration) {
         self.configuration = configuration
         
+        Task { @MainActor in
+            do {
+                call = CallClient()
+            }
+        }
+        
+        
         Daily.setLogLevel(.off)
     }
     
@@ -221,10 +228,7 @@ public final class Vapi: CallClientDelegate {
     private func joinCall(url: URL, recordVideo: Bool) {
         Task { @MainActor in
             do {
-                let call = CallClient()
-                call.delegate = self
-                self.call = call
-                
+                guard let call else { return }
                 _ = try await call.join(
                     url: url,
                     settings: .init(
