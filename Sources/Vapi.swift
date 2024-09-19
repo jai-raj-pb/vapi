@@ -57,7 +57,7 @@ public final class Vapi: CallClientDelegate {
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
     private let networkManager = NetworkManager()
-    private var call: CallClient?
+    var call: CallClient?
     
     // MARK: - Computed Properties
     
