@@ -52,11 +52,12 @@ public final class Vapi: CallClientDelegate {
     // MARK: - Properties
 
     public let configuration: Configuration
+    @Published public private(set) var currentVideoTrack: VideoTrack?
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
     private let networkManager = NetworkManager()
-    private var call: CallClient?
+    public var call: CallClient?
     
     // MARK: - Computed Properties
     
@@ -86,6 +87,12 @@ public final class Vapi: CallClientDelegate {
     public init(configuration: Configuration) {
         self.configuration = configuration
         
+        Task { @MainActor in
+            do {
+                call = CallClient()
+            }
+        }
+        
         Daily.setLogLevel(.off)
     }
     
@@ -102,7 +109,10 @@ public final class Vapi: CallClientDelegate {
     public func start(
         assistantId: String, metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
     ) async throws -> WebCallResponse {
-        guard self.call == nil else {
+        guard call != nil else {
+            throw VapiError.customError("call not initialized")
+        }
+        guard await self.call?.callState != .joined else {
             throw VapiError.existingCallInProgress
         }
         
@@ -116,7 +126,10 @@ public final class Vapi: CallClientDelegate {
     public func start(
         assistant: [String: Any], metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
     ) async throws -> WebCallResponse {
-        guard self.call == nil else {
+        guard call != nil else {
+            throw VapiError.customError("call not initialized")
+        }
+        guard await self.call?.callState != .joined else {
             throw VapiError.existingCallInProgress
         }
         
@@ -159,7 +172,8 @@ public final class Vapi: CallClientDelegate {
     private var isMicrophoneMuted: Bool = false
 
     public func setMuted(_ muted: Bool) async throws {
-        guard let call = self.call else {
+        guard let call else { return }
+        guard await call.callState == .joined else {
             throw VapiError.noCallInProgress
         }
         
@@ -178,7 +192,8 @@ public final class Vapi: CallClientDelegate {
     }
 
     public func isMuted() async throws {
-        guard let call = self.call else {
+        guard let call else { return }
+        guard await call.callState == .joined else {
             throw VapiError.noCallInProgress
         }
         
@@ -201,7 +216,8 @@ public final class Vapi: CallClientDelegate {
     /// This method sets the `AudioDeviceType` of the current called to the passed one if it's not the same as the current one
     /// - Parameter audioDeviceType: can either be `bluetooth`, `speakerphone`, `wired` or `earpiece`
     public func setAudioDeviceType(_ audioDeviceType: AudioDeviceType) async throws {
-        guard let call else {
+        guard let call else { return }
+        guard await call.callState == .joined else {
             throw VapiError.noCallInProgress
         }
         
@@ -220,9 +236,10 @@ public final class Vapi: CallClientDelegate {
     private func joinCall(url: URL, recordVideo: Bool) {
         Task { @MainActor in
             do {
-                let call = CallClient()
-                call.delegate = self
-                self.call = call
+                guard let call else { return }
+                guard call.callState != .joined || call.callState != .joining else {
+                    throw VapiError.existingCallInProgress
+                }
                 
                 _ = try await call.join(
                     url: url,
@@ -344,21 +361,49 @@ public final class Vapi: CallClientDelegate {
     func callDidLeave() {
         print("Successfully left call.")
         
+        guard let call else { return }
         self.eventSubject.send(.callDidEnd)
-        self.call = nil
+        Task { @MainActor in
+            do {
+                try await call.leave()
+            } catch {
+                print(error)
+            }
+        }
     }
     
     func callDidFail(with error: Swift.Error) {
         print("Got error while joining/leaving call: \(error).")
         
+        guard let call else { return }
         self.eventSubject.send(.error(error))
-        self.call = nil
+        Task { @MainActor in
+            do {
+                try await call.leave()
+            } catch {
+                print(error)
+            }
+        }
     }
     
+    public func callClient(_ callClient: CallClient, participantJoined participant: Participant) {
+        print("Participant \(participant.id) joined the call.")
+        // Determine whether the video input is from the camera or screen.
+        let cameraTrack = participant.media?.camera.track
+        let screenTrack = participant.media?.screenVideo.track
+        let videoTrack = screenTrack ?? cameraTrack
+        currentVideoTrack = videoTrack
+    }
+
     public func callClient(_ callClient: CallClient, participantUpdated participant: Participant) {
         let isPlayable = participant.media?.microphone.state == Daily.MediaState.playable
         let isVapiSpeaker = participant.info.username == "Vapi Speaker"
         let shouldSendAppMessage = isPlayable && isVapiSpeaker
+        
+        let cameraTrack = participant.media?.camera.track
+        let screenTrack = participant.media?.screenVideo.track
+        let videoTrack = screenTrack ?? cameraTrack
+        currentVideoTrack = videoTrack
         
         guard shouldSendAppMessage else {
             return
