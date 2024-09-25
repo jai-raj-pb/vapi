@@ -90,6 +90,7 @@ public final class Vapi: CallClientDelegate {
         Task { @MainActor in
             do {
                 call = CallClient()
+                call?.delegate = self
             }
         }
         
