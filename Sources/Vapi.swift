@@ -91,6 +91,10 @@ public final class Vapi: CallClientDelegate {
             do {
                 call = CallClient()
                 call?.delegate = self
+                call?.setInputsEnabled([
+                    .camera: true,
+                    .microphone: true
+                ], completion: nil)
             }
         }
         
