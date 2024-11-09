@@ -47,6 +47,8 @@ public final class Vapi: CallClientDelegate {
         case conversationUpdate(ConversationUpdate)
         case hang
         case error(Swift.Error)
+        case participantJoined(Participant)
+        case participantLeft(Participant)
     }
     
     // MARK: - Properties
@@ -374,6 +376,14 @@ public final class Vapi: CallClientDelegate {
         
         self.eventSubject.send(.error(error))
         self.call = nil
+    }
+    
+    public func callClient(_ callClient: CallClient, participantJoined participant: Participant) {
+        eventSubject.send(.participantJoined(participant))
+    }
+    
+    public func callClient(_ callClient: CallClient, participantLeft participant: Participant, withReason reason: ParticipantLeftReason) {
+        eventSubject.send(.participantLeft(participant))
     }
     
     public func callClient(_ callClient: CallClient, participantUpdated participant: Participant) {
