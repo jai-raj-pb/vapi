@@ -49,6 +49,7 @@ public final class Vapi: CallClientDelegate {
         case error(Swift.Error)
         case participantJoined(Participant)
         case participantLeft(Participant)
+        case userInterrupted
     }
     
     // MARK: - Properties
@@ -470,6 +471,8 @@ public final class Vapi: CallClientDelegate {
             case .conversationUpdate:
                 let conv = try decoder.decode(ConversationUpdate.self, from: unescapedData)
                 event = Event.conversationUpdate(conv)
+            case .userInterruped:
+                event = Event.userInterrupted
             }
             eventSubject.send(event)
         } catch {
