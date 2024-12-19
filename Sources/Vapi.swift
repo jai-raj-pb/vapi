@@ -86,7 +86,7 @@ public final class Vapi: CallClientDelegate {
     
     // MARK: - Init
     
-    public init(configuration: Configuration) {
+    public init(configuration: Configuration, logLevel: LogLevel = .off) {
         self.configuration = configuration
         
         Task { @MainActor in
@@ -100,7 +100,7 @@ public final class Vapi: CallClientDelegate {
             }
         }
         
-        Daily.setLogLevel(.off)
+        Daily.setLogLevel(logLevel)
     }
     
     public convenience init(publicKey: String) {
