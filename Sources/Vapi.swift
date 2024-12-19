@@ -151,6 +151,7 @@ public final class Vapi: CallClientDelegate {
         Task {
             do {
                 try await call?.leave()
+                call = nil
                 completion()
             } catch {
                 self.callDidFail(with: error)
