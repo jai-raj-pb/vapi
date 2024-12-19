@@ -86,7 +86,7 @@ public final class Vapi: CallClientDelegate {
     
     // MARK: - Init
     
-    public init(configuration: Configuration, logLevel: LogLevel = .off) {
+    public init(configuration: Configuration, logLevel: LogLevel) {
         self.configuration = configuration
         
         Task { @MainActor in
@@ -103,12 +103,12 @@ public final class Vapi: CallClientDelegate {
         Daily.setLogLevel(logLevel)
     }
     
-    public convenience init(publicKey: String) {
-        self.init(configuration: .init(publicKey: publicKey, host: Configuration.defaultHost))
+    public convenience init(publicKey: String, logLevel: LogLevel = .off) {
+        self.init(configuration: .init(publicKey: publicKey, host: Configuration.defaultHost), logLevel: logLevel)
     }
     
-    public convenience init(publicKey: String, host: String? = nil) {
-        self.init(configuration: .init(publicKey: publicKey, host: host ?? Configuration.defaultHost))
+    public convenience init(publicKey: String, host: String? = nil, logLevel: LogLevel = .off) {
+        self.init(configuration: .init(publicKey: publicKey, host: host ?? Configuration.defaultHost), logLevel: logLevel)
     }
     
     // MARK: - Instance Methods
