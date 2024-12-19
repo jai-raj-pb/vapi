@@ -147,12 +147,14 @@ public final class Vapi: CallClientDelegate {
         return try await self.startCall(body: body)
     }
     
-    public func stop() {
+    public func stop(completion: @escaping () -> Void) {
         Task {
             do {
                 try await call?.leave()
+                completion()
             } catch {
                 self.callDidFail(with: error)
+                completion()
             }
         }
     }
