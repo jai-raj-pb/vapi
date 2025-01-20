@@ -54,7 +54,7 @@ public final class Vapi: CallClientDelegate {
     
     // MARK: - Properties
 
-    public let configuration: Configuration
+    public private(set) var configuration: Configuration
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
@@ -114,8 +114,11 @@ public final class Vapi: CallClientDelegate {
     // MARK: - Instance Methods
     
     public func start(
-        assistantId: String, metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
+        assistantId: String, publicKey: String? = nil, metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
     ) async throws -> WebCallResponse {
+        if let publicKey {
+            configuration.publicKey = publicKey
+        }
         guard call != nil else {
             throw VapiError.customError("call not initialized")
         }
@@ -131,8 +134,11 @@ public final class Vapi: CallClientDelegate {
     }
     
     public func start(
-        assistant: [String: Any], metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
+        assistant: [String: Any], publicKey: String? = nil, metadata: [String: Any] = [:], assistantOverrides: [String: Any] = [:]
     ) async throws -> WebCallResponse {
+        if let publicKey {
+            configuration.publicKey = publicKey
+        }
         guard call != nil else {
             throw VapiError.customError("call not initialized")
         }
