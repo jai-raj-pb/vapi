@@ -54,7 +54,7 @@ public final class Vapi: CallClientDelegate {
     
     // MARK: - Properties
 
-    public let configuration: Configuration
+    public private(set) var configuration: Configuration
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
@@ -101,6 +101,10 @@ public final class Vapi: CallClientDelegate {
         }
         
         Daily.setLogLevel(logLevel)
+    }
+    
+    public func updatePublicKey(_ publicKey: String) {
+        self.configuration.publicKey = publicKey
     }
     
     public convenience init(publicKey: String, logLevel: LogLevel = .off) {
