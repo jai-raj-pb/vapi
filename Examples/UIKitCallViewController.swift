@@ -1,8 +1,10 @@
 import UIKit
 import Vapi
+import Combine
 
 class CallViewController: UIViewController {
     private var vapi: Vapi?
+    private var cancellables = Set<AnyCancellable>()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -10,9 +12,23 @@ class CallViewController: UIViewController {
     }
 
     private func setupVapi() {
-        let config = Vapi.Configuration(publicKey: "your_public_key")
-        vapi = Vapi(configuration: config)
-
+        vapi = Vapi(publicKey: "your_public_key", callMode: .video)
+        
+        vapi?.eventPublisher.sink { [weak self] event in
+            switch event {
+            case .callDidStart:
+                self?.updateUIForCallStart()
+            case .callDidEnd:
+                self?.updateUIForCallEnd()
+            default:
+                break
+            }
+        }.store(in: &cancellables)
+    }
+    
+    private func setupVapiAudioOnly() {
+        vapi = Vapi(publicKey: "your_public_key", callMode: .audio)
+        
         vapi?.eventPublisher.sink { [weak self] event in
             switch event {
             case .callDidStart:
@@ -26,15 +42,17 @@ class CallViewController: UIViewController {
     }
 
     @IBAction func startCallPressed(_ sender: UIButton) {
-        do {
-            try vapi?.start(assistantId: "your_assistant_id")
-        } catch {
-            print("Error starting call: \(error)")
+        Task {
+            do {
+                try await vapi?.start(assistantId: "your_assistant_id")
+            } catch {
+                print("Error starting call: \(error)")
+            }
         }
     }
 
     @IBAction func stopCallPressed(_ sender: UIButton) {
-        vapi?.stop()
+        vapi?.stop { }
     }
 
     private func updateUIForCallStart() {
