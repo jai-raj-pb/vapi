@@ -45,11 +45,14 @@ public final class Vapi: CallClientDelegate {
         case speechUpdate(SpeechUpdate)
         case metadata(Metadata)
         case conversationUpdate(ConversationUpdate)
+        case statusUpdate(StatusUpdate)
+        case modelOutput(ModelOutput)
+        case userInterrupted(UserInterrupted)
+        case voiceInput(VoiceInput)
         case hang
         case error(Swift.Error)
         case participantJoined(Participant)
         case participantLeft(Participant)
-        case userInterrupted
     }
     
     // MARK: - Properties
@@ -83,6 +86,9 @@ public final class Vapi: CallClientDelegate {
     @MainActor public var audioDeviceType: AudioDeviceType? {
         call?.audioDevice
     }
+    
+    private var isMicrophoneMuted: Bool = false
+    private var isAssistantMuted: Bool = false
     
     // MARK: - Init
     
@@ -184,8 +190,6 @@ public final class Vapi: CallClientDelegate {
           throw error // Re-throw the error to be handled by the caller
       }
     }
-    
-    private var isMicrophoneMuted: Bool = false
 
     public func setMuted(_ muted: Bool) async throws {
         guard let call else { return }
@@ -229,6 +233,39 @@ public final class Vapi: CallClientDelegate {
         }
     }
     
+    public func setAssistantMuted(_ muted: Bool) async throws {
+        guard let call else {
+            throw VapiError.noCallInProgress
+        }
+        
+        do {
+            let remoteParticipants = await call.participants.remote
+            
+            // First retrieve the assistant where the user name is "Vapi Speaker", this is the one we will unsubscribe from or subscribe too
+            guard let assistant = remoteParticipants.first(where: { $0.value.info.username == .remoteParticipantVapiSpeaker })?.value else { return }
+            
+            // Then we update the subscription to `staged` if muted which means we don't receive audio
+            // but we'll still receive the response. If we unmute it we set it back to `subscribed` so we start
+            // receiving audio again. This is taken from Daily examples.
+            _ = try await call.updateSubscriptions(
+                forParticipants: .set([
+                    assistant.id: .set(
+                        profile: .set(.base),
+                        media: .set(
+                            microphone: .set(
+                                subscriptionState: muted ? .set(.staged) : .set(.subscribed)
+                            )
+                        )
+                    )
+                ])
+            )
+            isAssistantMuted = muted
+        } catch {
+            print("Failed to set subscription state to \(muted ? "Staged" : "Subscribed") for remote assistant")
+            throw error
+        }
+    }
+    
     /// This method sets the `AudioDeviceType` of the current called to the passed one if it's not the same as the current one
     /// - Parameter audioDeviceType: can either be `bluetooth`, `speakerphone`, `wired` or `earpiece`
     public func setAudioDeviceType(_ audioDeviceType: AudioDeviceType) async throws {
@@ -246,6 +283,7 @@ public final class Vapi: CallClientDelegate {
             try await call.setPreferredAudioDevice(audioDeviceType)
         } catch {
             print("Failed to change the AudioDeviceType with error: \(error)")
+            throw error
         }
     }
 
@@ -480,8 +518,18 @@ public final class Vapi: CallClientDelegate {
             case .conversationUpdate:
                 let conv = try decoder.decode(ConversationUpdate.self, from: unescapedData)
                 event = Event.conversationUpdate(conv)
-            case .userInterruped:
-                event = Event.userInterrupted
+            case .statusUpdate:
+                let statusUpdate = try decoder.decode(StatusUpdate.self, from: unescapedData)
+                event = Event.statusUpdate(statusUpdate)
+            case .modelOutput:
+                let modelOutput = try decoder.decode(ModelOutput.self, from: unescapedData)
+                event = Event.modelOutput(modelOutput)
+            case .userInterrupted:
+                let userInterrupted = UserInterrupted()
+                event = Event.userInterrupted(userInterrupted)
+            case .voiceInput:
+                let voiceInput = try decoder.decode(VoiceInput.self, from: unescapedData)
+                event = Event.voiceInput(voiceInput)
             }
             eventSubject.send(event)
         } catch {
