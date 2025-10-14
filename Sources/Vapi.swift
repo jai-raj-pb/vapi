@@ -58,6 +58,7 @@ public final class Vapi: CallClientDelegate {
     // MARK: - Properties
 
     public private(set) var configuration: Configuration
+    private let callMode: CallMode
 
     fileprivate let eventSubject = PassthroughSubject<Event, Never>()
     
@@ -92,16 +93,17 @@ public final class Vapi: CallClientDelegate {
     
     // MARK: - Init
     
-    public init(configuration: Configuration, logLevel: LogLevel) {
+    public init(configuration: Configuration, logLevel: LogLevel, callMode: CallMode = .video) {
         self.configuration = configuration
+        self.callMode = callMode
         
         Task { @MainActor in
             do {
                 call = CallClient()
                 call?.delegate = self
                 call?.setInputsEnabled([
-                    .camera: true,
-                    .microphone: true
+                    .camera: callMode.cameraEnabled,
+                    .microphone: callMode.microphoneEnabled
                 ], completion: nil)
             }
         }
@@ -109,12 +111,12 @@ public final class Vapi: CallClientDelegate {
         Daily.setLogLevel(logLevel)
     }
     
-    public convenience init(publicKey: String, logLevel: LogLevel = .off) {
-        self.init(configuration: .init(publicKey: publicKey, host: Configuration.defaultHost), logLevel: logLevel)
+    public convenience init(publicKey: String, logLevel: LogLevel = .off, callMode: CallMode = .video) {
+        self.init(configuration: .init(publicKey: publicKey, host: Configuration.defaultHost), logLevel: logLevel, callMode: callMode)
     }
     
-    public convenience init(publicKey: String, host: String? = nil, logLevel: LogLevel = .off) {
-        self.init(configuration: .init(publicKey: publicKey, host: host ?? Configuration.defaultHost), logLevel: logLevel)
+    public convenience init(publicKey: String, host: String? = nil, logLevel: LogLevel = .off, callMode: CallMode = .video) {
+        self.init(configuration: .init(publicKey: publicKey, host: host ?? Configuration.defaultHost), logLevel: logLevel, callMode: callMode)
     }
     
     // MARK: - Instance Methods
@@ -299,8 +301,8 @@ public final class Vapi: CallClientDelegate {
                     url: url,
                     settings: .init(
                         inputs: .set(
-                            camera: .set(.enabled(recordVideo)),
-                            microphone: .set(.enabled(true))
+                            camera: .set(.enabled(callMode.cameraEnabled)),
+                            microphone: .set(.enabled(callMode.microphoneEnabled))
                         )
                     )
                 )
